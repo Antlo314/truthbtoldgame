@@ -24,6 +24,18 @@ book's chapters through time, gathering knowledge to face the present.
 | `assets/cutscenes/` | Drop converted Grok videos here (see its README for the ffmpeg step) |
 | `assets/models/`, `assets/audio/` | 3D models and sound |
 
+## Web build (what Vercel serves)
+
+`web/` holds the exported browser build (WASM); `vercel.json` points Vercel
+at it, so every push redeploys the playable game. To rebuild after changes:
+
+```
+godot --headless --export-release "Web" web/index.html
+```
+
+Test locally with `node web_server.js` → http://localhost:8742. Saves work
+in the browser too (Godot maps `user://` to IndexedDB).
+
 ## Opening the project
 
 Install Godot 4.4 (standard, not .NET) → Import → select this folder's
