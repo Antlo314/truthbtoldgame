@@ -426,14 +426,15 @@ func _spawn_life() -> void:
 	# world keeps strolling no matter what you Discern. Sidewalks sit just
 	# inside the building rows at x ≈ ±5.2.
 	var ped := preload("res://scripts/pedestrian.gd")
-	# Sidewalks are the curb edges at x ≈ ±4.0 — between the open road and the
-	# storefronts, where walkers read clearly without clipping the buildings.
+	# Sidewalks are the curb strips at x ≈ ±3.5 — clear of the building faces
+	# (x ≈ ±4.5) so walkers never clip storefronts, and clear of the traffic
+	# lanes (x = ±1.5) so they don't get run over.
 	var routes := [
-		["res://assets/models/characters/woman_casual.glb", Vector3(4.0, 0.1, -26), Vector3(4.0, 0.1, 18), 2.0],
-		["res://assets/models/characters/woman_animated.glb", Vector3(4.0, 0.1, 26), Vector3(4.0, 0.1, -10), 1.7],
-		["res://assets/models/enemies/agent_suit.glb", Vector3(-4.0, 0.1, 28), Vector3(-4.0, 0.1, -20), 2.2],
-		["res://assets/models/characters/woman_casual.glb", Vector3(-4.0, 0.1, -24), Vector3(-4.0, 0.1, 20), 1.8],
-		["res://assets/models/enemies/agent_businessman.glb", Vector3(4.0, 0.1, 2), Vector3(4.0, 0.1, 32), 2.1],
+		["res://assets/models/characters/woman_casual.glb", Vector3(3.5, 0.1, -26), Vector3(3.5, 0.1, 18), 2.0],
+		["res://assets/models/characters/woman_animated.glb", Vector3(3.5, 0.1, 26), Vector3(3.5, 0.1, -10), 1.7],
+		["res://assets/models/enemies/agent_suit.glb", Vector3(-3.5, 0.1, 28), Vector3(-3.5, 0.1, -20), 2.2],
+		["res://assets/models/characters/woman_casual.glb", Vector3(-3.5, 0.1, -24), Vector3(-3.5, 0.1, 20), 1.8],
+		["res://assets/models/enemies/agent_businessman.glb", Vector3(3.5, 0.1, 2), Vector3(3.5, 0.1, 32), 2.1],
 	]
 	for r in routes:
 		var p := ped.new()
@@ -443,10 +444,10 @@ func _spawn_life() -> void:
 	# Traffic driving the center lanes (set dressing — no physics).
 	var car := preload("res://scripts/traffic_car.gd")
 	var traffic := [
-		["res://assets/models/cars/taxi.glb", 1.9, 1.0, 8.0, -30.0],
-		["res://assets/models/cars/police.glb", 1.9, 1.0, 7.0, 6.0],
-		["res://assets/models/cars/sedan-sports.glb", -1.9, -1.0, 9.0, 20.0],
-		["res://assets/models/cars/delivery.glb", -1.9, -1.0, 6.5, -12.0],
+		["res://assets/models/cars/taxi.glb", 1.5, 1.0, 8.0, -30.0],
+		["res://assets/models/cars/police.glb", 1.5, 1.0, 7.0, 6.0],
+		["res://assets/models/cars/sedan-sports.glb", -1.5, -1.0, 9.0, 20.0],
+		["res://assets/models/cars/delivery.glb", -1.5, -1.0, 6.5, -12.0],
 	]
 	for t in traffic:
 		var c := car.new()

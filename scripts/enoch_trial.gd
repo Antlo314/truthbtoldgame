@@ -1,9 +1,9 @@
 extends Node3D
 ## The first Jasher Jump — Enoch's trial. A path of light across the heavens
-## before the flood. The lamp never runs dry here; the veil gates open only
-## while Discerning. At the far end: the Walking With God Gift.
-## This scene is the template every later chapter (Abraham, Joseph, Moses)
-## reuses: enter → one trial mechanic → one Gift → return.
+## before the flood, barred by three Seals of Knowledge. Each Seal is a
+## mini-game; beat it and the Seal opens. At the far end: the Walking With
+## God Gift. This scene is the template every later chapter (Abraham, Joseph,
+## Moses) reuses: enter → trials → one Gift → return.
 ##
 ## Screenshot mode:
 ##   godot --path . res://scenes/enoch_trial.tscn ++ --screenshot-trial
@@ -13,20 +13,36 @@ const GATE_Z: Array[float] = [-22.0, -46.0, -70.0]
 const SUMMIT_Z := -86.0
 const CARD_SCRIPT := preload("res://scripts/ui/story_card.gd")
 
+# Which mini-game guards each Seal, and how it's framed.
+const SEALS := [
+	["res://scripts/ui/mg_star_trace.gd", "THE FIRST SEAL — THE COURSES OF THE STARS",
+		"Enoch was shown the order of the luminaries. Trace the constellation: tap the stars 1 through 5."],
+	["res://scripts/ui/mg_sequence.gd", "THE SECOND SEAL — THE NAMES OF THE HOLY ONES",
+		"Watch the lamps, then repeat their order. Hold the pattern until it is complete."],
+	["res://scripts/ui/mg_stacker.gd", "THE THIRD SEAL — THE FOUNDATIONS OF THE DEEP",
+		"Set the falling stones in their courses. Clear two full rows to open the way."],
+]
+
 var _player: CharacterBody3D
 var _cam_rig: Node3D
+var _gate_bodies: Array[StaticBody3D] = []
 var _gate_cols: Array[CollisionShape3D] = []
 var _gate_mats: Array[StandardMaterial3D] = []
+var _seal_solved := [false, false, false]
+var _active := -1
+var _active_mg = null
 var _checkpoint := Vector3(0, 0.2, 2)
 var _done := false
 var _shot := false
+var _seal_shot := [false, false, false]
 var _frames := 0
 
 
 func _ready() -> void:
 	_shot = OS.get_cmdline_user_args().has("--screenshot-trial")
-	GameState.oil_locked = true
-	GameState.discernment_unlocked = true  # always true by the time you're here
+	# In the trial there's no combat or Discern — it's a pure trial of
+	# knowledge — so hide that HUD; it's restored on return to the city.
+	GameState.discernment_unlocked = false
 	GameState.minimap_rects.clear()
 	GameState.minimap_shards.clear()
 	GameState.minimap_writings.clear()
@@ -37,10 +53,10 @@ func _ready() -> void:
 	_spawn_player()
 	_build_camera()
 	add_child(preload("res://scripts/ui/hud.gd").new())
-	GameState.discern_changed.connect(_on_discern_changed)
-	_on_discern_changed(GameState.discerning)
-	GameState.objective_pos = Vector3(0, 1.5, SUMMIT_Z - 4)
-	GameState.flash_message("The lamp never runs dry here. Hold DISCERN to pass the veils — walk with God.")
+	_update_objective()
+	GameState.flash_message("Three Seals bar the path. Walk up to each and pass its trial.")
+	if _shot:
+		process_mode = Node.PROCESS_MODE_ALWAYS  # keep ticking while mini-games pause
 
 
 func _process(delta: float) -> void:
@@ -54,9 +70,16 @@ func _process(delta: float) -> void:
 func _physics_process(_delta: float) -> void:
 	if _player == null or _done:
 		return
-	for z in GATE_Z:
-		if _player.position.z < z - 1.5 and _checkpoint.z > z:
-			_checkpoint = Vector3(0, 0.2, z - 2.5)
+	# Approaching an unsolved Seal launches its trial.
+	if _active == -1:
+		for i in GATE_Z.size():
+			if not _seal_solved[i] and _player.position.z < GATE_Z[i] + 3.2 and _player.position.z > GATE_Z[i]:
+				_launch_seal(i)
+				break
+	# Advance the respawn checkpoint past each opened Seal.
+	for i in GATE_Z.size():
+		if _seal_solved[i] and _player.position.z < GATE_Z[i] - 1.0 and _checkpoint.z > GATE_Z[i]:
+			_checkpoint = Vector3(0, 0.2, GATE_Z[i] - 2.5)
 	if _player.position.y < -10.0:
 		_player.position = _checkpoint
 		_player.velocity = Vector3.ZERO
@@ -223,15 +246,48 @@ func _make_gate(z: float) -> void:
 	mesh_i.material_override = mat
 	body.add_child(mesh_i)
 	add_child(body)
+	_gate_bodies.append(body)
 	_gate_cols.append(col)
 	_gate_mats.append(mat)
 
 
-func _on_discern_changed(active: bool) -> void:
-	for col in _gate_cols:
-		col.disabled = active
-	for mat in _gate_mats:
-		mat.albedo_color.a = 0.15 if active else 0.55
+# --- the Seals --------------------------------------------------------------
+
+func _launch_seal(i: int) -> void:
+	_active = i
+	var mg = (load(SEALS[i][0]) as GDScript).new()
+	add_child(mg)
+	mg.open(SEALS[i][1], SEALS[i][2])
+	mg.solved.connect(_solve_seal.bind(i))
+	mg.bailed.connect(_bail_seal.bind(i))
+	_active_mg = mg
+
+
+func _solve_seal(i: int) -> void:
+	_seal_solved[i] = true
+	_active = -1
+	_active_mg = null
+	_gate_cols[i].set_deferred("disabled", true)
+	_gate_mats[i].albedo_color = Color(1.0, 0.9, 0.6, 0.12)
+	_gate_mats[i].emission = Color(1.0, 0.85, 0.5)
+	GameState.flash_message("The Seal opens. Walk on.")
+	_update_objective()
+
+
+func _bail_seal(i: int) -> void:
+	_active = -1
+	_active_mg = null
+	# Step the walker back so they leave the Seal's range and can re-approach.
+	_player.position.z = GATE_Z[i] + 4.5
+	_player.velocity = Vector3.ZERO
+
+
+func _update_objective() -> void:
+	for i in GATE_Z.size():
+		if not _seal_solved[i]:
+			GameState.objective_pos = Vector3(0, 1.5, GATE_Z[i])
+			return
+	GameState.objective_pos = Vector3(0, 1.5, SUMMIT_Z - 4)
 
 
 # --- actors -----------------------------------------------------------------
@@ -284,19 +340,56 @@ func _return_home() -> void:
 
 func _run_shot() -> void:
 	_frames += 1
+	# Directly render each mini-game once, up front, to verify they draw.
 	match _frames:
-		15:
-			Input.action_press("move_forward")
-		80:
-			Input.action_press("discern")
-		150:
+		5:
+			_shot_open_mg(0)
+		30:
+			_capture("mg_star.png", false)
+		35:
+			_shot_close_mg()
+		40:
+			_shot_open_mg(1)
+		65:
+			_capture("mg_sequence.png", false)
+		70:
+			_shot_close_mg()
+		75:
+			_shot_open_mg(2)
+		100:
+			_capture("mg_stacker.png", false)
+		105:
+			_shot_close_mg()
+		120:
 			_capture("trial_path.png", false)
-		235:
-			_capture("trial_gate.png", false)
-		600:
-			_capture("trial_mid.png", false)
-		905:
-			_capture("trial_summit.png", true)
+			Input.action_press("move_forward")
+	# Once walking, auto-solve each Seal's trial as it pops, capturing it.
+	if _frames > 120 and _active >= 0 and not _seal_shot[_active]:
+		_seal_shot[_active] = true
+		_capture_active_seal(_active)
+	if _done and _frames % 30 == 0 and _frames > 130:
+		_capture("trial_summit.png", true)
+
+
+func _shot_open_mg(i: int) -> void:
+	var mg = (load(SEALS[i][0]) as GDScript).new()
+	add_child(mg)
+	mg.open(SEALS[i][1], SEALS[i][2])
+	_active_mg = mg
+
+
+func _shot_close_mg() -> void:
+	if is_instance_valid(_active_mg):
+		_active_mg.queue_free()
+	_active_mg = null
+	get_tree().paused = false
+
+
+func _capture_active_seal(i: int) -> void:
+	var mg = _active_mg
+	await _capture("trial_seal_%d.png" % i, false)
+	if is_instance_valid(mg):
+		mg.debug_solve()
 
 
 func _capture(file: String, then_quit: bool) -> void:

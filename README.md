@@ -62,12 +62,13 @@ pickup. Preview renders live in `docs/previews/`.
 - [x] Part 1 quest arc: Lala's message → errand → the Book (unlocks Discernment) → shard hunt → Watcher chase → safehouse ending ("to be continued")
 - [x] Story-card cutscene placeholders (Grok videos drop into the same slots later)
 - [x] First deliverance encounter — the alley spirit hunts while you Discern, drains Oil on touch; STRIKE (F) three times to cast it out
-- [x] The Enoch trial — first Jasher Jump: walk the path of light through the veil gates as Enoch; grants the Walking With God Gift; Part 1 now ends after the return
+- [x] The Enoch trial — first Jasher Jump: walk the path of light, beat the THREE SEALS (mini-games) to pass, grants the Walking With God Gift; Part 1 ends after the return
+- [x] Mini-games (`scripts/ui/mg_*.gd`): Star Trace (constellation puzzle), Light Sequence (Simon memory), The Stacker (Tetris-like line-clear) — reusable framework, droppable anywhere
 - [x] The Gift works in the present — a veil seals the alley's far mouth; Walking With God phases through it to the torn page (Part 2 teaser: ABRAHAM)
 - [x] Sound effects — discern hum, strike/hit impacts, deliverance bell, pickup chimes, card clicks (Kenney CC0)
 - [x] Hidden writings — 7 scripture easter eggs (1 Enoch, Genesis 15:13, Psalm 137, Deut 28:68, Joshua 10:13) visible only while Discerning, annotated by the TBT family
 - [x] Lighting pass — warm key sun + cool fill so characters read, filmic tonemapping, soft glow on emissives (both scenes)
-- [x] A living block — pedestrians walking the sidewalks (oblivious to the truth) and cars driving the lanes
+- [x] A living block — pedestrians walking the sidewalks (oblivious to the truth, clear of buildings) and solid cars driving the lanes (you can't walk through them)
 - [ ] Ambient music loop
 - [ ] Android export + on-device test
 - [ ] Part 2: The Furnace (Abraham chapter)

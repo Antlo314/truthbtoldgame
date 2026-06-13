@@ -1,9 +1,10 @@
-extends Node3D
-## A car driving the north-south street. Loops along a lane, wrapping from
-## one end to the other. No physics — it's set dressing, so it just drives.
+extends AnimatableBody3D
+## A car driving the north-south street. Loops along a lane, wrapping from one
+## end to the other. AnimatableBody3D so it pushes the player instead of being
+## walked through — set dressing you still have to dodge.
 
 var model_path := "res://assets/models/cars/sedan.glb"
-var lane_x := 2.7
+var lane_x := 1.6
 var dir := 1.0          # +1 drives south (+z), -1 drives north (-z)
 var speed := 7.0
 var z_min := -34.0
@@ -20,6 +21,7 @@ func setup(model: String, x: float, direction: float, car_speed: float, start_z:
 
 
 func _ready() -> void:
+	sync_to_physics = true
 	var inst: Node3D = (load(model_path) as PackedScene).instantiate()
 	add_child(inst)
 	inst.scale = Vector3.ONE * scale_factor
@@ -28,8 +30,15 @@ func _ready() -> void:
 	var aabb := _combined_aabb(inst)
 	inst.position.y = -aabb.position.y * scale_factor
 
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(aabb.size.x, aabb.size.y, aabb.size.z) * scale_factor
+	col.shape = box
+	col.position.y = (aabb.size.y * 0.5) * scale_factor
+	add_child(col)
 
-func _process(delta: float) -> void:
+
+func _physics_process(delta: float) -> void:
 	position.z += dir * speed * delta
 	if dir > 0.0 and position.z > z_max:
 		position.z = z_min
