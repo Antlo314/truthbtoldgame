@@ -1,14 +1,18 @@
 extends CharacterBody3D
 ## Bro Truth — present-day controller. Animated Quaternius Hoodie Character
-## with Idle/Walk/Run blending driven by movement speed.
+## with Idle/Walk/Run blending and Strike (deliverance) combat.
 
 const MODEL := preload("res://assets/models/characters/bro_truth_hoodie.glb")
 const SPEED := 6.0
 const ACCEL := 24.0
 const TURN_SPEED := 12.0
 const HEIGHT := 1.7
+const STRIKE_RANGE := 2.6
+const STRIKE_COOLDOWN := 0.45
 
 var _anim: AnimationPlayer
+var _action_until := 0.0
+var _punch_left := false
 
 
 func _ready() -> void:
@@ -32,8 +36,17 @@ func _ready() -> void:
 	if not players.is_empty():
 		_anim = players[0]
 		for n in _anim.get_animation_list():
-			_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+			# Only locomotion loops; one-shots (punches, hits) play through.
+			if n.contains("Idle") or n.contains("Walk") or n.contains("Run"):
+				_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 		_play("Idle_Neutral")
+
+
+func _process(_delta: float) -> void:
+	# Strike is handled in _process: just_pressed from UI buttons or scripted
+	# input doesn't reliably cross into the physics frame counter.
+	if Input.is_action_just_pressed("strike"):
+		_strike()
 
 
 func _physics_process(delta: float) -> void:
@@ -57,13 +70,35 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	var speed := Vector2(velocity.x, velocity.z).length()
-	if speed > 4.0:
-		_play("Run")
-	elif speed > 0.4:
-		_play("Walk")
-	else:
-		_play("Idle_Neutral")
+	if Time.get_ticks_msec() / 1000.0 >= _action_until:
+		var speed := Vector2(velocity.x, velocity.z).length()
+		if speed > 4.0:
+			_play("Run")
+		elif speed > 0.4:
+			_play("Walk")
+		else:
+			_play("Idle_Neutral")
+
+
+func _strike() -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now < _action_until:
+		return
+	_action_until = now + STRIKE_COOLDOWN
+	_punch_left = not _punch_left
+	_force_play("Punch_Left" if _punch_left else "Punch_Right")
+	if not GameState.discerning:
+		return
+	for spirit in get_tree().get_nodes_in_group("spirits"):
+		if not is_instance_valid(spirit):
+			continue
+		var to_s: Vector3 = spirit.global_position - global_position
+		to_s.y = 0.0
+		if to_s.length() > STRIKE_RANGE:
+			continue
+		var fwd := -global_transform.basis.z
+		if fwd.dot(to_s.normalized()) > 0.2:
+			spirit.take_hit(to_s.normalized())
 
 
 func _play(name: String) -> void:
@@ -72,6 +107,14 @@ func _play(name: String) -> void:
 	var full := "CharacterArmature|" + name
 	if _anim.has_animation(full) and _anim.current_animation != full:
 		_anim.play(full, 0.2)
+
+
+func _force_play(name: String) -> void:
+	if _anim == null:
+		return
+	var full := "CharacterArmature|" + name
+	if _anim.has_animation(full):
+		_anim.play(full, 0.1)
 
 
 func _combined_aabb(root: Node3D) -> AABB:

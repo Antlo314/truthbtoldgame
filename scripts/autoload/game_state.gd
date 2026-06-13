@@ -7,6 +7,7 @@ signal discern_changed(active: bool)
 signal shards_changed(found: int, total: int)
 signal quest_changed(stage: int)
 signal alert_changed(active: bool)
+signal message_flashed(text: String)
 
 const OIL_MAX := 100.0
 const OIL_DRAIN := 16.0   # per second while Discerning
@@ -16,7 +17,7 @@ const OBJECTIVES := {
 	0: "",
 	1: "Run Lala's errand — follow the gold arrow to the corner store.",
 	2: "Follow the arrow. The alley is calling.",
-	3: "Hold DISCERN (Space) to see the truth. Find the 5 Witness shards — they show on your map while Discerning.",
+	3: "Hold DISCERN (Space) to see the truth — and STRIKE (F) what you find. The 5 Witness shards show on your map while Discerning.",
 	4: "THE VEIL SEES YOU — follow the arrow to the steel door!",
 	5: "Part 1 slice complete. To be continued…",
 }
@@ -30,7 +31,10 @@ var alert_active := false
 var shards_total := 5
 var collected_shards: Array[int] = []
 var gifts: Array[String] = []
+var delivered_spirits: Array[String] = []
 var playtime := 0.0
+
+var _dry_flash_at := -10.0
 
 ## Virtual joystick output (set by the HUD, read by the player).
 var touch_move := Vector2.ZERO
@@ -63,10 +67,36 @@ func _process(delta: float) -> void:
 func set_discerning(on: bool) -> void:
 	if on and oil <= 0.0:
 		on = false
+		if Input.is_action_just_pressed("discern") and playtime - _dry_flash_at > 2.0:
+			_dry_flash_at = playtime
+			flash_message("Your lamp is dry — refill at the glowing study point.")
 	if discerning == on:
 		return
 	discerning = on
 	discern_changed.emit(on)
+
+
+func drain_oil(amount: float) -> void:
+	if oil <= 0.0:
+		return
+	oil = maxf(oil - amount, 0.0)
+	oil_changed.emit(oil, OIL_MAX)
+	if oil <= 0.0:
+		set_discerning(false)
+
+
+func flash_message(text: String) -> void:
+	message_flashed.emit(text)
+
+
+func deliver_spirit(spirit_id: String) -> void:
+	if spirit_id in delivered_spirits:
+		return
+	delivered_spirits.append(spirit_id)
+	oil = OIL_MAX
+	oil_changed.emit(oil, OIL_MAX)
+	flash_message("The spirit is cast out. Your lamp burns full.")
+	SaveManager.save_game()
 
 
 func refill_oil(delta: float) -> void:
@@ -108,6 +138,9 @@ func apply_save(data: Dictionary) -> void:
 	gifts.clear()
 	for g in data.get("gifts", []):
 		gifts.append(str(g))
+	delivered_spirits.clear()
+	for d in data.get("delivered_spirits", []):
+		delivered_spirits.append(str(d))
 	part = int(data.get("part", 1))
 	quest_stage = int(data.get("quest_stage", 0))
 	discernment_unlocked = bool(data.get("discernment_unlocked", false))
@@ -127,6 +160,7 @@ func _register_actions() -> void:
 		"move_forward": [KEY_W, KEY_UP],
 		"move_back": [KEY_S, KEY_DOWN],
 		"discern": [KEY_SPACE],
+		"strike": [KEY_F],
 	}
 	for action in bindings:
 		if InputMap.has_action(action):

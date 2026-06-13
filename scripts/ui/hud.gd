@@ -12,7 +12,9 @@ var _stick_visual: StickVisual
 var _arrow: ArrowVisual
 var _minimap: MinimapVisual
 var _discern_btn: Button
+var _strike_btn: Button
 var _oil_bar: ProgressBar
+var _flash_left := 0.0
 var _shard_label: Label
 var _hint: Label
 var _vignette: ColorRect
@@ -152,6 +154,21 @@ func _ready() -> void:
 	_discern_btn.button_up.connect(func() -> void: Input.action_release("discern"))
 	add_child(_discern_btn)
 
+	_strike_btn = Button.new()
+	_strike_btn.text = "STRIKE"
+	_strike_btn.add_theme_font_size_override("font_size", 22)
+	_strike_btn.anchor_left = 1.0
+	_strike_btn.anchor_top = 1.0
+	_strike_btn.anchor_right = 1.0
+	_strike_btn.anchor_bottom = 1.0
+	_strike_btn.offset_left = -190.0
+	_strike_btn.offset_top = -360.0
+	_strike_btn.offset_right = -40.0
+	_strike_btn.offset_bottom = -210.0
+	_strike_btn.button_down.connect(func() -> void: Input.action_press("strike"))
+	_strike_btn.button_up.connect(func() -> void: Input.action_release("strike"))
+	add_child(_strike_btn)
+
 	_oil_bar = ProgressBar.new()
 	_oil_bar.max_value = GameState.OIL_MAX
 	_oil_bar.value = GameState.oil
@@ -198,6 +215,7 @@ func _ready() -> void:
 	GameState.shards_changed.connect(_on_shards_changed)
 	GameState.discern_changed.connect(_on_discern_changed)
 	GameState.quest_changed.connect(_on_quest_changed)
+	GameState.message_flashed.connect(_on_message_flashed)
 	_on_shards_changed(GameState.collected_shards.size(), GameState.shards_total)
 	_on_quest_changed(GameState.quest_stage)
 
@@ -208,6 +226,10 @@ func _process(delta: float) -> void:
 		_pulse += delta
 		target = 0.10 + 0.05 * sin(_pulse * 6.0)
 	_vignette.color.a = lerpf(_vignette.color.a, target, minf(1.0, 10.0 * delta))
+	if _flash_left > 0.0:
+		_flash_left -= delta
+		if _flash_left <= 0.0:
+			_hint.text = GameState.objective_text()
 	_stick_visual.queue_redraw()
 	_arrow.queue_redraw()
 	_minimap.queue_redraw()
@@ -247,9 +269,16 @@ func _on_shards_changed(found: int, total: int) -> void:
 
 func _on_quest_changed(_stage: int) -> void:
 	_hint.text = GameState.objective_text()
+	_flash_left = 0.0
 	_discern_btn.visible = GameState.discernment_unlocked
+	_strike_btn.visible = GameState.discernment_unlocked
 	_oil_bar.visible = GameState.discernment_unlocked
 	_shard_label.visible = GameState.discernment_unlocked
+
+
+func _on_message_flashed(text: String) -> void:
+	_hint.text = text
+	_flash_left = 4.0
 
 
 func _on_discern_changed(active: bool) -> void:

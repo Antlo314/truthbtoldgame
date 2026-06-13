@@ -29,6 +29,7 @@ func save_game() -> void:
 		"discernment_unlocked": GameState.discernment_unlocked,
 		"collected_shards": GameState.collected_shards,
 		"gifts": GameState.gifts,
+		"delivered_spirits": GameState.delivered_spirits,
 		"oil": GameState.oil,
 		"playtime": GameState.playtime,
 		"saved_at": Time.get_datetime_string_from_system(),

@@ -116,6 +116,7 @@ func _physics_process(delta: float) -> void:
 				_player.position = Vector3(0, 0.2, 2)
 				_player.velocity = Vector3.ZERO
 				_watcher.reset_home()
+				GameState.flash_message("They grabbed you — you slipped away. RUN!")
 	if GameState.discerning:
 		for id in _shards.keys():
 			var shard: MeshInstance3D = _shards[id]
@@ -311,11 +312,14 @@ func _spawn_npcs() -> void:
 	_watcher.position = Vector3(-5.2, 0.2, -6)
 	add_child(_watcher)
 	_watcher.setup(_player)
-	# The spirit over the alley — only there when you Discern
-	var ghost := _spawn_npc("res://assets/models/enemies/ghost_spirit.glb", Vector3(12, 1.6, 8), -90.0, "CharacterArmature|Flying_Idle")
-	if ghost:
-		ghost.visible = false
-		_hidden_nodes.append(ghost)
+	# The spirit over the alley — only there when you Discern, and it bites
+	if not ("alley_spirit" in GameState.delivered_spirits):
+		var spirit := preload("res://scripts/spirit.gd").new()
+		spirit.position = Vector3(12, 1.6, 8)
+		add_child(spirit)
+		spirit.setup(_player, "alley_spirit")
+		spirit.visible = false
+		_hidden_nodes.append(spirit)
 
 
 func _spawn_npc(path: String, pos: Vector3, yaw: float, anim: String) -> Node3D:
@@ -370,7 +374,8 @@ func _on_discern_changed(active: bool) -> void:
 	for shard in _shards.values():
 		shard.visible = active
 	for node in _hidden_nodes:
-		node.visible = active
+		if is_instance_valid(node):
+			node.visible = active
 	_env.fog_enabled = active
 	if active:
 		_env.fog_light_color = Color(0.95, 0.78, 0.35)
@@ -531,7 +536,15 @@ func _run_screenshot_script() -> void:
 			Input.action_release("move_forward")
 			Input.action_press("discern")
 		120:
-			_capture("block_discern.png", true)
+			_capture("block_discern.png", false)
+		150, 180, 210, 240, 270:
+			Input.action_press("strike")
+		153, 183, 213, 243, 273:
+			Input.action_release("strike")
+		215:
+			_capture("combat_strike.png", false)
+		300:
+			_capture("combat_cast_out.png", true)
 
 
 func _capture(file: String, then_quit: bool) -> void:
