@@ -64,6 +64,8 @@ pickup. Preview renders live in `docs/previews/`.
 - [x] First deliverance encounter — the alley spirit hunts while you Discern, drains Oil on touch; STRIKE (F) three times to cast it out
 - [x] The Enoch trial — first Jasher Jump: walk the path of light through the veil gates as Enoch; grants the Walking With God Gift; Part 1 now ends after the return
 - [x] The Gift works in the present — a veil seals the alley's far mouth; Walking With God phases through it to the torn page (Part 2 teaser: ABRAHAM)
-- [ ] Music + sound effects
+- [x] Sound effects — discern hum, strike/hit impacts, deliverance bell, pickup chimes, card clicks (Kenney CC0)
+- [x] Hidden writings — 7 scripture easter eggs (1 Enoch, Genesis 15:13, Psalm 137, Deut 28:68, Joshua 10:13) visible only while Discerning, annotated by the TBT family
+- [ ] Ambient music loop
 - [ ] Android export + on-device test
 - [ ] Part 2: The Furnace (Abraham chapter)
