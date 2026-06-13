@@ -1,14 +1,16 @@
 extends CanvasLayer
-## Touch controls + HUD, built in code. Floating virtual joystick on the left
-## half of the screen, hold-to-Discern button bottom-right, Oil bar and
-## Witness shard counter. Works with mouse/keyboard on desktop too.
+## Touch controls + HUD, built in code. Anchored virtual joystick bottom-left
+## (visible resting pad), hold-to-Discern button bottom-right, Oil bar,
+## shard counter, objective arrow with distance, and a minimap of the block.
+## Works with mouse/keyboard on desktop too.
 
 const STICK_RADIUS := 90.0
 
 var _touch_id := -1
-var _stick_center := Vector2.ZERO
 
 var _stick_visual: StickVisual
+var _arrow: ArrowVisual
+var _minimap: MinimapVisual
 var _discern_btn: Button
 var _oil_bar: ProgressBar
 var _shard_label: Label
@@ -18,16 +20,94 @@ var _pulse := 0.0
 
 
 class StickVisual extends Control:
-	var center := Vector2.ZERO
+	const RADIUS := 90.0
+	const HOME_OFFSET := Vector2(160, 180)  # from the bottom-left corner
+
 	var thumb := Vector2.ZERO
 	var active := false
 
+	func home() -> Vector2:
+		var vp := get_viewport_rect().size
+		return Vector2(HOME_OFFSET.x, vp.y - HOME_OFFSET.y)
+
 	func _draw() -> void:
-		if not active:
+		var c := home()
+		draw_circle(c, RADIUS, Color(1, 1, 1, 0.16 if active else 0.07))
+		draw_arc(c, RADIUS, 0.0, TAU, 48, Color(1, 1, 1, 0.30 if active else 0.14), 2.0)
+		draw_circle(c + thumb, 34.0, Color(1, 1, 1, 0.35 if active else 0.16))
+
+
+class ArrowVisual extends Control:
+	func _draw() -> void:
+		var target: Vector3 = GameState.objective_pos
+		if target == Vector3.INF:
 			return
-		draw_circle(center, 90.0, Color(1, 1, 1, 0.07))
-		draw_arc(center, 90.0, 0.0, TAU, 48, Color(1, 1, 1, 0.25), 2.0)
-		draw_circle(center + thumb, 34.0, Color(1, 1, 1, 0.3))
+		var cam := get_viewport().get_camera_3d()
+		if cam == null:
+			return
+		var vp := get_viewport_rect().size
+		var center := vp * 0.5
+		var behind := cam.is_position_behind(target)
+		var sp := cam.unproject_position(target)
+		var dist := int(cam.global_position.distance_to(target))
+		var font := ThemeDB.fallback_font
+		var gold := Color(1.0, 0.84, 0.4, 0.95)
+		var on_screen := not behind and sp.x > 0.0 and sp.x < vp.x and sp.y > 0.0 and sp.y < vp.y
+		if on_screen:
+			var p := sp + Vector2(0, -36)
+			draw_colored_polygon(PackedVector2Array([p + Vector2(0, 14), p + Vector2(-11, -6), p + Vector2(11, -6)]), gold)
+			draw_string(font, p + Vector2(-24, -14), "%d m" % dist, HORIZONTAL_ALIGNMENT_CENTER, 48, 18, gold)
+		else:
+			var dir := sp - center
+			if behind:
+				dir = -dir
+			if dir.length() < 1.0:
+				dir = Vector2(0, -1)
+			dir = dir.normalized()
+			var margin := 64.0
+			var tx := INF if absf(dir.x) < 0.001 else (vp.x * 0.5 - margin) / absf(dir.x)
+			var ty := INF if absf(dir.y) < 0.001 else (vp.y * 0.5 - margin) / absf(dir.y)
+			var p := center + dir * minf(tx, ty)
+			draw_set_transform(p, dir.angle(), Vector2.ONE)
+			draw_colored_polygon(PackedVector2Array([Vector2(18, 0), Vector2(-10, 11), Vector2(-10, -11)]), gold)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			draw_string(font, p - dir * 34.0 + Vector2(-24, 6), "%d m" % dist, HORIZONTAL_ALIGNMENT_CENTER, 48, 18, gold)
+
+
+class MinimapVisual extends Control:
+	func _draw() -> void:
+		var world: Rect2 = GameState.minimap_world
+		var px := size
+		draw_rect(Rect2(Vector2.ZERO, px), Color(0.05, 0.06, 0.08, 0.55))
+		draw_rect(Rect2(Vector2.ZERO, px), Color(1, 1, 1, 0.25), false, 1.5)
+		draw_rect(_map_rect(GameState.minimap_road, world, px), Color(0.25, 0.26, 0.28, 0.9))
+		for r in GameState.minimap_rects:
+			draw_rect(_map_rect(r, world, px), Color(0.55, 0.30, 0.24, 0.9))
+		draw_circle(_map_pt(GameState.study_point, world, px), 3.0, Color(0.3, 0.85, 0.9))
+		if GameState.discerning:
+			for s in GameState.minimap_shards:
+				draw_circle(_map_pt(s, world, px), 3.0, Color(1.0, 0.8, 0.3))
+		if GameState.objective_pos != Vector3.INF:
+			draw_circle(_map_pt(GameState.objective_pos, world, px), 4.5, Color(1.0, 0.84, 0.4))
+		if GameState.player and is_instance_valid(GameState.player):
+			var pp := _map_pt(GameState.player.position, world, px)
+			var yaw: float = GameState.player.rotation.y
+			var facing := Vector2(-sin(yaw), -cos(yaw))
+			draw_line(pp, pp + facing * 9.0, Color(1, 1, 1, 0.9), 2.0)
+			draw_circle(pp, 3.5, Color.WHITE)
+
+	func _map_pt(p: Vector3, world: Rect2, px: Vector2) -> Vector2:
+		return Vector2(
+			(p.x - world.position.x) / world.size.x * px.x,
+			(p.z - world.position.y) / world.size.y * px.y
+		)
+
+	func _map_rect(r: Rect2, world: Rect2, px: Vector2) -> Rect2:
+		return Rect2(
+			Vector2((r.position.x - world.position.x) / world.size.x * px.x,
+				(r.position.y - world.position.y) / world.size.y * px.y),
+			Vector2(r.size.x / world.size.x * px.x, r.size.y / world.size.y * px.y)
+		)
 
 
 func _ready() -> void:
@@ -41,6 +121,21 @@ func _ready() -> void:
 	_stick_visual.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_stick_visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_stick_visual)
+
+	_arrow = ArrowVisual.new()
+	_arrow.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_arrow)
+
+	_minimap = MinimapVisual.new()
+	_minimap.anchor_left = 1.0
+	_minimap.anchor_right = 1.0
+	_minimap.offset_left = -180.0
+	_minimap.offset_top = 64.0
+	_minimap.offset_right = -24.0
+	_minimap.offset_bottom = 64.0 + 156.0 * 72.0 / 44.0
+	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_minimap)
 
 	_discern_btn = Button.new()
 	_discern_btn.text = "DISCERN"
@@ -113,32 +208,33 @@ func _process(delta: float) -> void:
 		_pulse += delta
 		target = 0.10 + 0.05 * sin(_pulse * 6.0)
 	_vignette.color.a = lerpf(_vignette.color.a, target, minf(1.0, 10.0 * delta))
+	_stick_visual.queue_redraw()
+	_arrow.queue_redraw()
+	_minimap.queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
+	var vp := _stick_visual.get_viewport_rect().size
 	if event is InputEventScreenTouch:
-		if event.pressed and _touch_id == -1 and event.position.x < _half_width():
+		if event.pressed and _touch_id == -1 and event.position.x < vp.x * 0.5 and event.position.y > vp.y * 0.4:
 			_touch_id = event.index
-			_stick_center = event.position
-			_set_stick(Vector2.ZERO, true)
+			_update_stick(event.position)
 		elif not event.pressed and event.index == _touch_id:
 			_touch_id = -1
 			_set_stick(Vector2.ZERO, false)
 	elif event is InputEventScreenDrag and event.index == _touch_id:
-		var offset: Vector2 = (event.position - _stick_center).limit_length(STICK_RADIUS)
-		_set_stick(offset / STICK_RADIUS, true)
+		_update_stick(event.position)
 
 
-func _half_width() -> float:
-	return _stick_visual.get_viewport_rect().size.x * 0.5
+func _update_stick(touch_pos: Vector2) -> void:
+	var offset: Vector2 = (touch_pos - _stick_visual.home()).limit_length(STICK_RADIUS)
+	_set_stick(offset / STICK_RADIUS, true)
 
 
 func _set_stick(vec: Vector2, active: bool) -> void:
 	GameState.touch_move = vec
-	_stick_visual.center = _stick_center
 	_stick_visual.thumb = vec * STICK_RADIUS
 	_stick_visual.active = active
-	_stick_visual.queue_redraw()
 
 
 func _on_oil_changed(value: float, _max_value: float) -> void:

@@ -58,6 +58,9 @@ func _ready() -> void:
 	_shot_quest = args.has("--screenshot-quest")
 	SaveManager.load_game()
 	GameState.shards_total = SHARD_POSITIONS.size()
+	GameState.minimap_rects.clear()
+	GameState.minimap_shards.clear()
+	GameState.study_point = STUDY_POINT
 	if _shot:
 		GameState.quest_stage = 3
 		GameState.discernment_unlocked = true
@@ -118,6 +121,7 @@ func _physics_process(delta: float) -> void:
 			var shard: MeshInstance3D = _shards[id]
 			if _player.position.distance_to(shard.position) < COLLECT_RANGE:
 				GameState.collect_shard(id)
+				GameState.minimap_shards.erase(SHARD_POSITIONS[id])
 				shard.queue_free()
 				_shards.erase(id)
 	elif _player.position.distance_to(STUDY_POINT) < REFILL_RANGE:
@@ -250,6 +254,7 @@ func _place_kit(path: String, pos: Vector3, yaw := 0.0, tint := Color(0, 0, 0, 0
 		if int(roundf(absf(yaw))) % 180 == 90:
 			size = Vector3(size.z, size.y, size.x)
 		_invisible_box(size, Vector3(pos.x, pos.y + size.y * 0.5, pos.z))
+		GameState.minimap_rects.append(Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z))
 	return inst
 
 
@@ -297,6 +302,7 @@ func _spawn_shards() -> void:
 		m.visible = false
 		add_child(m)
 		_shards[id] = m
+		GameState.minimap_shards.append(SHARD_POSITIONS[id])
 
 
 func _spawn_npcs() -> void:
@@ -338,6 +344,7 @@ func _spawn_player() -> void:
 	_player = player_script.new()
 	_player.position = Vector3(0, 0.2, 18)
 	add_child(_player)
+	GameState.player = _player
 
 
 func _build_camera() -> void:
@@ -381,12 +388,12 @@ func _spawn_quest_objects() -> void:
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 0.5
 	cyl.bottom_radius = 0.5
-	cyl.height = 14.0
+	cyl.height = 26.0
 	_beam.mesh = cyl
 	var bmat := StandardMaterial3D.new()
 	bmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bmat.albedo_color = Color(1.0, 0.85, 0.4, 0.28)
+	bmat.albedo_color = Color(1.0, 0.85, 0.4, 0.38)
 	_beam.material_override = bmat
 	_beam.visible = false
 	add_child(_beam)
@@ -468,8 +475,9 @@ func _set_beam(pos: Vector3, on: bool) -> void:
 	if _beam == null:
 		return
 	_beam.visible = on
+	GameState.objective_pos = pos + Vector3(0, 1.5, 0) if on else Vector3.INF
 	if on:
-		_beam.position = pos + Vector3(0, 7, 0)
+		_beam.position = pos + Vector3(0, 13, 0)
 
 
 func _on_shards_progress(found: int, total: int) -> void:

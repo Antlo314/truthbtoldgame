@@ -14,10 +14,10 @@ const OIL_REFILL := 45.0  # per second at a study point
 
 const OBJECTIVES := {
 	0: "",
-	1: "Run Lala's errand — pick up her package at the corner store.",
-	2: "That alley keeps pulling at you. Take the shortcut home.",
-	3: "Hold DISCERN (Space) to see the truth. Find the 5 Witness shards.",
-	4: "THE VEIL SEES YOU — get to the steel door, west side!",
+	1: "Run Lala's errand — follow the gold arrow to the corner store.",
+	2: "Follow the arrow. The alley is calling.",
+	3: "Hold DISCERN (Space) to see the truth. Find the 5 Witness shards — they show on your map while Discerning.",
+	4: "THE VEIL SEES YOU — follow the arrow to the steel door!",
 	5: "Part 1 slice complete. To be continued…",
 }
 
@@ -34,6 +34,16 @@ var playtime := 0.0
 
 ## Virtual joystick output (set by the HUD, read by the player).
 var touch_move := Vector2.ZERO
+
+## Guidance / minimap data (set by the level each run; world units are meters,
+## minimap rect coords are x/z footprints).
+var player: Node3D
+var objective_pos := Vector3.INF
+var minimap_world := Rect2(-22, -36, 44, 72)
+var minimap_road := Rect2(-4, -36, 8, 72)
+var minimap_rects: Array[Rect2] = []
+var minimap_shards: Array[Vector3] = []
+var study_point := Vector3.ZERO
 
 
 func _ready() -> void:
