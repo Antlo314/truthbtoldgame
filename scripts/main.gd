@@ -100,6 +100,7 @@ func _ready() -> void:
 	_spawn_writings()
 	_spawn_player()
 	_spawn_npcs()
+	_spawn_life()
 	_build_camera()
 	add_child(preload("res://scripts/ui/hud.gd").new())
 	GameState.discern_changed.connect(_on_discern_changed)
@@ -206,22 +207,46 @@ func _measure_kit() -> void:
 
 
 func _build_environment() -> void:
+	# Key light — warm afternoon sun, high enough to light the street between
+	# the building rows, soft shadows.
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, -35, 0)
-	sun.light_energy = 1.35
+	sun.rotation_degrees = Vector3(-62, -28, 0)
+	sun.light_energy = 1.7
+	sun.light_color = Color(1.0, 0.94, 0.83)
 	sun.shadow_enabled = true
+	sun.shadow_blur = 1.5
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	add_child(sun)
+
+	# Fill light — soft sky-bounce from the opposite side so faces and the
+	# shadowed sides of buildings read instead of crushing to black.
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-30, 135, 0)
+	fill.light_energy = 0.35
+	fill.light_color = Color(0.74, 0.80, 0.95)
+	add_child(fill)
 
 	_env = Environment.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.22, 0.30, 0.46)
-	sky_mat.sky_horizon_color = Color(0.78, 0.62, 0.50)
+	sky_mat.sky_top_color = Color(0.20, 0.32, 0.55)
+	sky_mat.sky_horizon_color = Color(0.86, 0.70, 0.56)
 	sky_mat.ground_horizon_color = Color(0.55, 0.48, 0.42)
+	sky_mat.sun_angle_max = 30.0
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	_env.background_mode = Environment.BG_SKY
 	_env.sky = sky
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	_env.ambient_light_energy = 1.0
+	# Filmic tonemapping so highlights roll off instead of blowing out, and the
+	# overall image stops looking flat and muddy.
+	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	_env.tonemap_white = 3.0
+	_env.tonemap_exposure = 1.15
+	# A soft warm glow on the emissive markers (shards, study point, beacon).
+	_env.glow_enabled = true
+	_env.glow_intensity = 0.5
+	_env.glow_bloom = 0.1
 	var world_env := WorldEnvironment.new()
 	world_env.environment = _env
 	add_child(world_env)
@@ -273,14 +298,16 @@ func _build_block() -> void:
 	# Skyscraper has a wider footprint — set back from the road
 	_place_kit("res://assets/models/city/building-skyscraper-a.glb", Vector3(-10, 0, -28), 90.0, Color(0, 0, 0, 0), true)
 
-	# Parked cars (car kit uses its own scale)
-	_place_kit("res://assets/models/cars/sedan.glb", Vector3(2.7, 0, -14), 180.0, Color(0, 0, 0, 0), true, false, CAR_SCALE)
-	_place_kit("res://assets/models/cars/taxi.glb", Vector3(-2.7, 0, 10), 0.0, Color(0, 0, 0, 0), true, false, CAR_SCALE)
-	_place_kit("res://assets/models/cars/police.glb", Vector3(2.7, 0, 20), 180.0, Color(0, 0, 0, 0), true, false, CAR_SCALE)
+	# A couple of parked cars tucked into the alley pocket and the far north —
+	# clear of the sidewalks where pedestrians walk and the lanes where traffic
+	# drives.
+	_place_kit("res://assets/models/cars/suv.glb", Vector3(11, 0, 5), 0.0, Color(0, 0, 0, 0), true, false, CAR_SCALE)
+	_place_kit("res://assets/models/cars/van.glb", Vector3(2.2, 0, -32), 0.0, Color(0, 0, 0, 0), true, false, CAR_SCALE)
 
-	# Streetlights
-	_place_kit("res://assets/models/roads/light-curved.glb", Vector3(4.6, 0, -16), -90.0)
-	_place_kit("res://assets/models/roads/light-curved.glb", Vector3(-4.6, 0, 16), 90.0)
+	# Streetlights down both curbs
+	for z in [-24, -8, 8, 24]:
+		_place_kit("res://assets/models/roads/light-curved.glb", Vector3(4.6, 0, z), -90.0)
+		_place_kit("res://assets/models/roads/light-curved.glb", Vector3(-4.6, 0, z), 90.0)
 
 	# Study point — glowing disc in the alley
 	var study := MeshInstance3D.new()
@@ -392,6 +419,39 @@ func _spawn_writings() -> void:
 		add_child(note)
 		_writings[id] = note
 		GameState.minimap_writings.append(WRITINGS[id][0])
+
+
+func _spawn_life() -> void:
+	# Pedestrians walking the sidewalks — oblivious to the truth. The sleeping
+	# world keeps strolling no matter what you Discern. Sidewalks sit just
+	# inside the building rows at x ≈ ±5.2.
+	var ped := preload("res://scripts/pedestrian.gd")
+	# Sidewalks are the curb edges at x ≈ ±4.0 — between the open road and the
+	# storefronts, where walkers read clearly without clipping the buildings.
+	var routes := [
+		["res://assets/models/characters/woman_casual.glb", Vector3(4.0, 0.1, -26), Vector3(4.0, 0.1, 18), 2.0],
+		["res://assets/models/characters/woman_animated.glb", Vector3(4.0, 0.1, 26), Vector3(4.0, 0.1, -10), 1.7],
+		["res://assets/models/enemies/agent_suit.glb", Vector3(-4.0, 0.1, 28), Vector3(-4.0, 0.1, -20), 2.2],
+		["res://assets/models/characters/woman_casual.glb", Vector3(-4.0, 0.1, -24), Vector3(-4.0, 0.1, 20), 1.8],
+		["res://assets/models/enemies/agent_businessman.glb", Vector3(4.0, 0.1, 2), Vector3(4.0, 0.1, 32), 2.1],
+	]
+	for r in routes:
+		var p := ped.new()
+		p.setup(r[0], r[1], r[2], r[3])
+		add_child(p)
+
+	# Traffic driving the center lanes (set dressing — no physics).
+	var car := preload("res://scripts/traffic_car.gd")
+	var traffic := [
+		["res://assets/models/cars/taxi.glb", 1.9, 1.0, 8.0, -30.0],
+		["res://assets/models/cars/police.glb", 1.9, 1.0, 7.0, 6.0],
+		["res://assets/models/cars/sedan-sports.glb", -1.9, -1.0, 9.0, 20.0],
+		["res://assets/models/cars/delivery.glb", -1.9, -1.0, 6.5, -12.0],
+	]
+	for t in traffic:
+		var c := car.new()
+		c.setup(t[0], t[1], t[2], t[3], t[4])
+		add_child(c)
 
 
 func _spawn_npcs() -> void:
@@ -683,6 +743,8 @@ func _run_screenshot_script() -> void:
 				_capture("quest_beam.png", true)
 		return
 	match _frames:
+		8:
+			_capture("block_life.png", false)
 		15:
 			Input.action_press("move_right")
 			Input.action_press("move_forward")

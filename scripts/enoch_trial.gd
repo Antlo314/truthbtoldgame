@@ -69,10 +69,20 @@ func _physics_process(_delta: float) -> void:
 # --- world ------------------------------------------------------------------
 
 func _build_world() -> void:
+	# Cool moonlight key from the Presence on the horizon.
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-35, 140, 0)
-	sun.light_energy = 0.7
+	sun.light_energy = 0.9
+	sun.light_color = Color(0.85, 0.88, 1.0)
 	add_child(sun)
+
+	# Warm fill from below — the path of light glows up onto the walker so
+	# Enoch reads instead of silhouetting against the bright path.
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(35, -30, 0)
+	fill.light_energy = 0.55
+	fill.light_color = Color(1.0, 0.88, 0.62)
+	add_child(fill)
 
 	var env := Environment.new()
 	var sky_mat := ProceduralSkyMaterial.new()
@@ -86,6 +96,11 @@ func _build_world() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 1.3
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_white = 4.0
+	env.glow_enabled = true
+	env.glow_intensity = 0.7
+	env.glow_bloom = 0.2
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)

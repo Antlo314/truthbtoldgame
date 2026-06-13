@@ -66,6 +66,8 @@ pickup. Preview renders live in `docs/previews/`.
 - [x] The Gift works in the present — a veil seals the alley's far mouth; Walking With God phases through it to the torn page (Part 2 teaser: ABRAHAM)
 - [x] Sound effects — discern hum, strike/hit impacts, deliverance bell, pickup chimes, card clicks (Kenney CC0)
 - [x] Hidden writings — 7 scripture easter eggs (1 Enoch, Genesis 15:13, Psalm 137, Deut 28:68, Joshua 10:13) visible only while Discerning, annotated by the TBT family
+- [x] Lighting pass — warm key sun + cool fill so characters read, filmic tonemapping, soft glow on emissives (both scenes)
+- [x] A living block — pedestrians walking the sidewalks (oblivious to the truth) and cars driving the lanes
 - [ ] Ambient music loop
 - [ ] Android export + on-device test
 - [ ] Part 2: The Furnace (Abraham chapter)
