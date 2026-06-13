@@ -1,0 +1,8 @@
+# Godot cache / editor state
+.godot/
+
+# Asset pack source archives — re-download from kenney.nl (see assets/CREDITS.md)
+assets/_downloads/
+
+# Android signing
+*.keystore
