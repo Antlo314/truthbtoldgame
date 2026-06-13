@@ -73,9 +73,12 @@ var _veil_mat: StandardMaterial3D
 var _page: MeshInstance3D
 var _writings := {}
 var _veil_flash_at := -10.0
+var _book_seal_started := false
 
 var _shot := false
 var _shot_quest := false
+var _shot_book := false
+var _shot_cipher = null
 var _frames := 0
 
 
@@ -83,6 +86,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	_shot = args.has("--screenshot")
 	_shot_quest = args.has("--screenshot-quest")
+	_shot_book = args.has("--screenshot-book")
 	SaveManager.load_game()
 	GameState.shards_total = SHARD_POSITIONS.size()
 	GameState.minimap_rects.clear()
@@ -103,6 +107,7 @@ func _ready() -> void:
 	_spawn_life()
 	_build_camera()
 	add_child(preload("res://scripts/ui/hud.gd").new())
+	Music.play_track("res://assets/audio/music_city.ogg")
 	GameState.discern_changed.connect(_on_discern_changed)
 	GameState.shards_changed.connect(_on_shards_progress)
 	_apply_stage(GameState.quest_stage)
@@ -113,7 +118,7 @@ func _ready() -> void:
 	if GameState.quest_stage >= 6:
 		_player.position = Vector3(-2.5, 0.2, 12)  # outside the safehouse
 		_cam_rig.position = _player.position + Vector3.UP * 1.7
-	if _shot or _shot_quest:
+	if _shot or _shot_quest or _shot_book:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	elif GameState.quest_stage == 0:
 		_show_intro.call_deferred()
@@ -131,7 +136,7 @@ func _process(delta: float) -> void:
 		shard.rotate_y(2.0 * delta)
 	if _page and is_instance_valid(_page):
 		_page.rotate_y(1.5 * delta)
-	if _shot or _shot_quest:
+	if _shot or _shot_quest or _shot_book:
 		_run_screenshot_script()
 
 
@@ -144,10 +149,8 @@ func _physics_process(delta: float) -> void:
 				_stage_card(2, "LALA'S PACKAGE",
 					"The shopkeeper hands it over without a word — but his eyes hold yours one beat too long.\n\nThe quickest way home cuts through the alley.")
 		2:
-			if _player.position.distance_to(BOOK_POS) < 2.0:
-				GameState.discernment_unlocked = true
-				_stage_card(3, "THE HIDDEN BOOK",
-					"In a broken cavity of the alley wall, wrapped in cloth nobody has touched in a long time: a book. The letters on the cover glow under your fingers.\n\nIt wasn't lost. It was waiting.\n\nThe alley peels back like paper. The city is not what it was.\n\n— DISCERNMENT UNLOCKED —")
+			if not _book_seal_started and _player.position.distance_to(BOOK_POS) < 2.0:
+				_launch_book_seal()
 		4:
 			if _player.position.distance_to(DOOR_POS) < 2.4:
 				_stage_card(5, "THE SAFEHOUSE",
@@ -692,6 +695,31 @@ func _show_intro() -> void:
 	_stage_card(1, INTRO_TITLE, INTRO_BODY)
 
 
+func _launch_book_seal() -> void:
+	_book_seal_started = true
+	GameState.flash_message("The Book is sealed. A word burns on the cover — scrambled.")
+	Sfx.play("discern_on")
+	var mg = preload("res://scripts/ui/mg_cipher.gd").new()
+	mg.target = "TRUTH"
+	add_child(mg)
+	mg.open("THE SEALED BOOK",
+		"The letters on the cover are out of order. Tap two to swap them. Spell the word that breaks the seal.")
+	mg.solved.connect(_open_book, CONNECT_ONE_SHOT)
+	mg.bailed.connect(_book_seal_bailed, CONNECT_ONE_SHOT)
+
+
+func _open_book() -> void:
+	GameState.discernment_unlocked = true
+	_stage_card(3, "THE HIDDEN BOOK",
+		"The word lands and the clasp falls open. Warm light floods up from the pages onto your face.\n\nIt wasn't lost. It was waiting.\n\nThe alley peels back like paper. The city is not what it was.\n\n— DISCERNMENT UNLOCKED —")
+
+
+func _book_seal_bailed() -> void:
+	_book_seal_started = false
+	_player.position.x = BOOK_POS.x - 3.5  # step back from the Book to retry
+	_player.velocity = Vector3.ZERO
+
+
 func _begin_first_walk() -> void:
 	_show_card("CS-06 — THE FIRST WALK",
 		"The Book opens on the table. The ink lifts off the page and becomes landscape — a world before the flood unfolds beneath a wheeling sky.\n\nBRO RASHAUD: \"Enoch walked with God. Tonight… you walk where he walked.\"")
@@ -731,6 +759,17 @@ func _show_card(title: String, body: String) -> void:
 
 func _run_screenshot_script() -> void:
 	_frames += 1
+	if _shot_book:
+		match _frames:
+			4:
+				_shot_cipher = preload("res://scripts/ui/mg_cipher.gd").new()
+				_shot_cipher.target = "TRUTH"
+				add_child(_shot_cipher)
+				_shot_cipher.open("THE SEALED BOOK",
+					"The letters on the cover are out of order. Tap two to swap them. Spell the word that breaks the seal.")
+			28:
+				_capture("mg_cipher.png", true)
+		return
 	if _shot_quest:
 		match _frames:
 			20:

@@ -53,6 +53,7 @@ func _ready() -> void:
 	_spawn_player()
 	_build_camera()
 	add_child(preload("res://scripts/ui/hud.gd").new())
+	Music.play_track("res://assets/audio/music_trial.ogg")
 	_update_objective()
 	GameState.flash_message("Three Seals bar the path. Walk up to each and pass its trial.")
 	if _shot:
