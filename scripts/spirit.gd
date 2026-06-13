@@ -78,6 +78,7 @@ func take_hit(dir: Vector3) -> void:
 	_hit_cd = 0.45
 	hp -= 1
 	global_position += dir * 1.4 + Vector3(0, 0.2, 0)
+	Sfx.play("hit")
 	if hp <= 0:
 		_die()
 	else:

@@ -90,6 +90,7 @@ func _strike() -> void:
 	_action_until = now + STRIKE_COOLDOWN
 	_punch_left = not _punch_left
 	_force_play("Punch_Left" if _punch_left else "Punch_Right")
+	Sfx.play("swing")
 	if not GameState.discerning:
 		return
 	for spirit in get_tree().get_nodes_in_group("spirits"):

@@ -36,6 +36,7 @@ var collected_shards: Array[int] = []
 var gifts: Array[String] = []
 var delivered_spirits: Array[String] = []
 var found_pages: Array[String] = []
+var found_writings: Array[int] = []
 var playtime := 0.0
 
 var _dry_flash_at := -10.0
@@ -51,6 +52,7 @@ var minimap_world := Rect2(-22, -36, 44, 72)
 var minimap_road := Rect2(-4, -36, 8, 72)
 var minimap_rects: Array[Rect2] = []
 var minimap_shards: Array[Vector3] = []
+var minimap_writings: Array[Vector3] = []
 var study_point := Vector3.ZERO
 
 
@@ -74,10 +76,12 @@ func set_discerning(on: bool) -> void:
 		if Input.is_action_just_pressed("discern") and playtime - _dry_flash_at > 2.0:
 			_dry_flash_at = playtime
 			flash_message("Your lamp is dry — refill at the glowing study point.")
+			Sfx.play("error")
 	if discerning == on:
 		return
 	discerning = on
 	discern_changed.emit(on)
+	Sfx.play("discern_on" if on else "discern_off")
 
 
 func drain_oil(amount: float) -> void:
@@ -97,6 +101,15 @@ func grant_gift(gift_id: String) -> void:
 	if gift_id in gifts:
 		return
 	gifts.append(gift_id)
+	Sfx.play("cast_out")
+	SaveManager.save_game()
+
+
+func collect_writing(writing_id: int) -> void:
+	if writing_id in found_writings:
+		return
+	found_writings.append(writing_id)
+	Sfx.play("paper")
 	SaveManager.save_game()
 
 
@@ -104,6 +117,7 @@ func collect_page(page_id: String) -> void:
 	if page_id in found_pages:
 		return
 	found_pages.append(page_id)
+	Sfx.play("paper")
 	SaveManager.save_game()
 
 
@@ -114,6 +128,7 @@ func deliver_spirit(spirit_id: String) -> void:
 	oil = OIL_MAX
 	oil_changed.emit(oil, OIL_MAX)
 	flash_message("The spirit is cast out. Your lamp burns full.")
+	Sfx.play("cast_out")
 	SaveManager.save_game()
 
 
@@ -129,6 +144,7 @@ func collect_shard(id: int) -> void:
 		return
 	collected_shards.append(id)
 	shards_changed.emit(collected_shards.size(), shards_total)
+	Sfx.play("shard")
 	SaveManager.save_game()
 
 
@@ -162,6 +178,9 @@ func apply_save(data: Dictionary) -> void:
 	found_pages.clear()
 	for p in data.get("found_pages", []):
 		found_pages.append(str(p))
+	found_writings.clear()
+	for w in data.get("found_writings", []):
+		found_writings.append(int(w))
 	part = int(data.get("part", 1))
 	quest_stage = int(data.get("quest_stage", 0))
 	discernment_unlocked = bool(data.get("discernment_unlocked", false))

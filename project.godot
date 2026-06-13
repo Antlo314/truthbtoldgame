@@ -13,6 +13,7 @@ config/features=PackedStringArray("4.6", "Mobile")
 
 GameState="*res://scripts/autoload/game_state.gd"
 SaveManager="*res://scripts/autoload/save_manager.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
 
 [display]
 

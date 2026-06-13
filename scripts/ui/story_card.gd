@@ -53,9 +53,11 @@ func open(title: String, body: String) -> void:
 	v.add_child(btn)
 
 	get_tree().paused = true
+	Sfx.play("card_open")
 
 
 func close() -> void:
+	Sfx.play("card_close")
 	if get_tree():
 		get_tree().paused = false
 	closed.emit()

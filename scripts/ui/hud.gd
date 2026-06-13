@@ -89,6 +89,8 @@ class MinimapVisual extends Control:
 		if GameState.discerning:
 			for s in GameState.minimap_shards:
 				draw_circle(_map_pt(s, world, px), 3.0, Color(1.0, 0.8, 0.3))
+			for w in GameState.minimap_writings:
+				draw_circle(_map_pt(w, world, px), 2.5, Color(0.95, 0.92, 0.80))
 		if GameState.objective_pos != Vector3.INF:
 			draw_circle(_map_pt(GameState.objective_pos, world, px), 4.5, Color(1.0, 0.84, 0.4))
 		if GameState.player and is_instance_valid(GameState.player):

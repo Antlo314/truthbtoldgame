@@ -18,6 +18,25 @@ const DOOR_POS := Vector3(-3.7, 0, 12)    # safehouse steel door (building-j)
 const VEIL_POS := Vector3(12, 1.7, 8)     # seals the alley's far mouth
 const PAGE_POS := Vector3(16, 0.9, 12)    # the Part 2 teaser, behind the veil
 
+# Hidden writings — left by watchmen who awakened before you. Only visible
+# while Discerning. [position, card title, card body]
+const WRITINGS := [
+	[Vector3(4.6, 0.5, -9.5), "THE WORDS OF ENOCH — 1 ENOCH 1:1-2",
+		"\"The words of the blessing of Enoch, wherewith he blessed the elect and righteous, who will be living in the day of tribulation, when all the wicked and godless are to be removed.\"\n\nScrawled beneath it:\n'He wasn't writing for his day. He was writing for OURS.' — R"],
+	[Vector3(8, 0.5, 15), "THE BOOK THE BOOKS POINT TO — JOSHUA 10:13",
+		"\"Is not this written in the book of Jasher?\"\n\nScrawled beneath it:\n'Scripture quotes it twice, then somebody shelved it. Ask yourself why a book the Bible trusts isn't in the Bible.' — KB"],
+	[Vector3(-4.4, 0.5, 14.6), "THE 400 YEARS — GENESIS 15:13",
+		"\"Know of a surety that thy seed shall be a stranger in a land that is not theirs, and shall serve them; and they shall afflict them four hundred years.\"\n\nScrawled beneath it:\n'1619. Count it yourself. Then look at the wall inside.' — L"],
+	[Vector3(-2.6, 0.5, 29), "BY THE RIVERS — PSALM 137:1,4",
+		"\"By the rivers of Babylon, there we sat down, yea, we wept… How shall we sing the LORD's song in a strange land?\"\n\nScrawled beneath it:\n'The Mississippi knows this song too.' — Lola"],
+	[Vector3(2.6, 0.5, -27), "THE SHIPS — DEUTERONOMY 28:68",
+		"\"And the LORD shall bring thee into Egypt again with ships… and there ye shall be sold unto your enemies for bondmen and bondwomen, and no man shall buy you.\"\n\nScrawled beneath it:\n'Egypt means bondage. The ships came. Read the whole chapter and weep awake.' — R"],
+	[Vector3(-16, 0.5, 30), "WHAT THE FALLEN TAUGHT — 1 ENOCH 8:1-2",
+		"\"And Azazel taught men to make swords, and knives, and shields… and there arose much godlessness, and they were led astray, and became corrupt in all their ways.\"\n\nScrawled beneath it:\n'The Veil's playbook is ancient. Weapons, vanity, confusion. Same three moves, new packaging.' — Rashaud"],
+	[Vector3(4.6, 0.5, 22), "THE BOOKS RETURN — 1 ENOCH 104:12",
+		"\"…books will be given to the righteous and the wise to become a cause of joy and uprightness and much wisdom.\"\n\nScrawled beneath it:\n'You're holding one right now, family. Joy first. Then work.' — Lala"],
+]
+
 const CARD_SCRIPT := preload("res://scripts/ui/story_card.gd")
 const INTRO_TITLE := "A MESSAGE FROM LALA"
 const INTRO_BODY := "\"You ever think about using that voice of yours? Somebody's got to tell the truth.\"\n\nThen a second buzz:\n\n\"Run me a favor today? My package is waiting at the corner store on your block. I'll owe you one.\""
@@ -52,6 +71,7 @@ var _veil_col: CollisionShape3D
 var _veil_mesh: MeshInstance3D
 var _veil_mat: StandardMaterial3D
 var _page: MeshInstance3D
+var _writings := {}
 var _veil_flash_at := -10.0
 
 var _shot := false
@@ -67,6 +87,7 @@ func _ready() -> void:
 	GameState.shards_total = SHARD_POSITIONS.size()
 	GameState.minimap_rects.clear()
 	GameState.minimap_shards.clear()
+	GameState.minimap_writings.clear()
 	GameState.study_point = STUDY_POINT
 	if _shot:
 		GameState.quest_stage = 3
@@ -76,6 +97,7 @@ func _ready() -> void:
 	_build_block()
 	_spawn_quest_objects()
 	_spawn_shards()
+	_spawn_writings()
 	_spawn_player()
 	_spawn_npcs()
 	_build_camera()
@@ -136,6 +158,7 @@ func _physics_process(delta: float) -> void:
 				_player.velocity = Vector3.ZERO
 				_watcher.reset_home()
 				GameState.flash_message("They grabbed you — you slipped away. RUN!")
+				Sfx.play("catch")
 	if GameState.discerning:
 		for id in _shards.keys():
 			var shard: MeshInstance3D = _shards[id]
@@ -144,6 +167,16 @@ func _physics_process(delta: float) -> void:
 				GameState.minimap_shards.erase(SHARD_POSITIONS[id])
 				shard.queue_free()
 				_shards.erase(id)
+		for id in _writings.keys():
+			var note: MeshInstance3D = _writings[id]
+			if _player.position.distance_to(note.position) < 2.0:
+				GameState.collect_writing(id)
+				GameState.minimap_writings.erase(WRITINGS[id][0])
+				note.queue_free()
+				_writings.erase(id)
+				GameState.flash_message("Hidden writing found (%d/%d)." % [GameState.found_writings.size(), WRITINGS.size()])
+				if not _shot and not _shot_quest:
+					_show_card(WRITINGS[id][1], WRITINGS[id][2])
 		if not ("walking_with_god" in GameState.gifts) \
 				and absf(_player.position.x - VEIL_POS.x) < 1.6 \
 				and _player.position.z > -0.5 and _player.position.z < 16.5 \
@@ -339,6 +372,28 @@ func _spawn_shards() -> void:
 		GameState.minimap_shards.append(SHARD_POSITIONS[id])
 
 
+func _spawn_writings() -> void:
+	for id in WRITINGS.size():
+		if id in GameState.found_writings:
+			continue
+		var note := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.35, 0.45, 0.04)
+		note.mesh = mesh
+		note.position = WRITINGS[id][0]
+		note.rotation_degrees = Vector3(-18, (id * 47) % 360, 0)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.95, 0.92, 0.82)
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 0.95, 0.8)
+		mat.emission_energy_multiplier = 1.2
+		note.material_override = mat
+		note.visible = false  # only the Discerning eye finds them
+		add_child(note)
+		_writings[id] = note
+		GameState.minimap_writings.append(WRITINGS[id][0])
+
+
 func _spawn_npcs() -> void:
 	# The Watcher on the west sidewalk — ordinary, until the shards are found
 	_watcher = preload("res://scripts/watcher.gd").new()
@@ -406,6 +461,9 @@ func _build_camera() -> void:
 func _on_discern_changed(active: bool) -> void:
 	for shard in _shards.values():
 		shard.visible = active
+	for note in _writings.values():
+		if is_instance_valid(note):
+			note.visible = active
 	for node in _hidden_nodes:
 		if is_instance_valid(node):
 			node.visible = active

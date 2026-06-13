@@ -29,6 +29,7 @@ func _ready() -> void:
 	GameState.discernment_unlocked = true  # always true by the time you're here
 	GameState.minimap_rects.clear()
 	GameState.minimap_shards.clear()
+	GameState.minimap_writings.clear()
 	GameState.minimap_road = Rect2()
 	GameState.minimap_world = Rect2(-20, -96, 40, 106)
 	GameState.study_point = Vector3(0, 0, -999)  # off-map
@@ -60,6 +61,7 @@ func _physics_process(_delta: float) -> void:
 		_player.position = _checkpoint
 		_player.velocity = Vector3.ZERO
 		GameState.flash_message("The path holds those who keep walking.")
+		Sfx.play("error")
 	if _player.position.z < SUMMIT_Z and absf(_player.position.x) < 6.0:
 		_complete()
 
