@@ -137,6 +137,7 @@ func _ready() -> void:
 	_minimap.offset_right = -24.0
 	_minimap.offset_bottom = 64.0 + 156.0 * 72.0 / 44.0
 	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_minimap.clip_contents = true
 	add_child(_minimap)
 
 	_discern_btn = Button.new()

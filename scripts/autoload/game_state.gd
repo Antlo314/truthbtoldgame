@@ -19,11 +19,14 @@ const OBJECTIVES := {
 	2: "Follow the arrow. The alley is calling.",
 	3: "Hold DISCERN (Space) to see the truth — and STRIKE (F) what you find. The 5 Witness shards show on your map while Discerning.",
 	4: "THE VEIL SEES YOU — follow the arrow to the steel door!",
-	5: "Part 1 slice complete. To be continued…",
+	5: "Walk where Enoch walked.",
+	6: "",
+	7: "Part 1 complete — the city is yours. To be continued…",
 }
 
 var part := 1
 var oil := OIL_MAX
+var oil_locked := false  # true in trial chapters — the lamp never runs dry there
 var discerning := false
 var discernment_unlocked := false
 var quest_stage := 0
@@ -57,7 +60,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	playtime += delta
 	set_discerning(discernment_unlocked and Input.is_action_pressed("discern"))
-	if discerning:
+	if discerning and not oil_locked:
 		oil = maxf(oil - OIL_DRAIN * delta, 0.0)
 		oil_changed.emit(oil, OIL_MAX)
 		if oil <= 0.0:
@@ -87,6 +90,13 @@ func drain_oil(amount: float) -> void:
 
 func flash_message(text: String) -> void:
 	message_flashed.emit(text)
+
+
+func grant_gift(gift_id: String) -> void:
+	if gift_id in gifts:
+		return
+	gifts.append(gift_id)
+	SaveManager.save_game()
 
 
 func deliver_spirit(spirit_id: String) -> void:

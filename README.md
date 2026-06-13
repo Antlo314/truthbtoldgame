@@ -61,7 +61,9 @@ pickup. Preview renders live in `docs/previews/`.
 - [x] Low-poly St. Louis block: Kenney streets + brick-tinted buildings, animated Bro Truth, Watcher NPC, alley spirit
 - [x] Part 1 quest arc: Lala's message → errand → the Book (unlocks Discernment) → shard hunt → Watcher chase → safehouse ending ("to be continued")
 - [x] Story-card cutscene placeholders (Grok videos drop into the same slots later)
-- [ ] First deliverance encounter (stagger → Discern → cast out)
-- [ ] Enoch jump trial level
+- [x] First deliverance encounter — the alley spirit hunts while you Discern, drains Oil on touch; STRIKE (F) three times to cast it out
+- [x] The Enoch trial — first Jasher Jump: walk the path of light through the veil gates as Enoch; grants the Walking With God Gift; Part 1 now ends after the return
+- [ ] Use the Gift in the present (veil barriers in St. Louis)
 - [ ] Music + sound effects
 - [ ] Android export + on-device test
+- [ ] Part 2: The Furnace (Abraham chapter)

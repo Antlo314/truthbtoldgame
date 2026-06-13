@@ -79,10 +79,18 @@ func _ready() -> void:
 	if GameState.quest_stage == 3 and GameState.collected_shards.size() >= GameState.shards_total:
 		GameState.set_stage(4)
 		_apply_stage(4)
+	GameState.oil_locked = false
+	if GameState.quest_stage >= 6:
+		_player.position = Vector3(-2.5, 0.2, 12)  # outside the safehouse
+		_cam_rig.position = _player.position + Vector3.UP * 1.7
 	if _shot or _shot_quest:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	elif GameState.quest_stage == 0:
 		_show_intro.call_deferred()
+	elif GameState.quest_stage == 5:
+		_begin_first_walk.call_deferred()
+	elif GameState.quest_stage == 6:
+		_show_part_complete.call_deferred()
 
 
 func _process(delta: float) -> void:
@@ -111,7 +119,9 @@ func _physics_process(delta: float) -> void:
 		4:
 			if _player.position.distance_to(DOOR_POS) < 2.4:
 				_stage_card(5, "THE SAFEHOUSE",
-					"A steel door swings open and a strong hand pulls you inside. Maps. Scripture. A timeline pinned across an entire wall: GENESIS 15:13 — 400 YEARS.\n\nBRO RASHAUD: \"You opened it. Then you already know — truth don't hide. It's hidden. Different thing.\"\n\n— PART 1 SLICE COMPLETE — TO BE CONTINUED —")
+					"A steel door swings open and a strong hand pulls you inside. Maps. Scripture. A timeline pinned across an entire wall: GENESIS 15:13 — 400 YEARS.\n\nBRO RASHAUD: \"You opened it. Then you already know — truth don't hide. It's hidden. Different thing.\"\n\nOn the table, the Book lies open — and the ink is moving.")
+				if _card and is_instance_valid(_card):
+					_card.closed.connect(_begin_first_walk, CONNECT_ONE_SHOT)
 			elif _watcher and _watcher.chasing and _watcher.position.distance_to(_player.position) < 1.5:
 				_player.position = Vector3(0, 0.2, 2)
 				_player.velocity = Vector3.ZERO
@@ -464,7 +474,7 @@ func _apply_stage(stage: int) -> void:
 			if _watcher:
 				_watcher.start_chase()
 			_set_beam(DOOR_POS, true)
-		5:
+		5, 6, 7:
 			GameState.discernment_unlocked = true
 			if is_instance_valid(_book):
 				_book.queue_free()
@@ -493,6 +503,27 @@ func _on_shards_progress(found: int, total: int) -> void:
 
 func _show_intro() -> void:
 	_stage_card(1, INTRO_TITLE, INTRO_BODY)
+
+
+func _begin_first_walk() -> void:
+	_show_card("CS-06 — THE FIRST WALK",
+		"The Book opens on the table. The ink lifts off the page and becomes landscape — a world before the flood unfolds beneath a wheeling sky.\n\nBRO RASHAUD: \"Enoch walked with God. Tonight… you walk where he walked.\"")
+	_card.closed.connect(_enter_trial, CONNECT_ONE_SHOT)
+
+
+func _enter_trial() -> void:
+	get_tree().change_scene_to_file("res://scenes/enoch_trial.tscn")
+
+
+func _show_part_complete() -> void:
+	_show_card("PART 1 — COMPLETE",
+		"Back through the page. The safehouse candles. The family waiting — and the Gift of Enoch burning quiet in your chest.\n\nBRO RASHAUD: \"One chapter down. The Book has more names — Abraham. Joseph. Moses. And now the Veil has ours.\"\n\n— TO BE CONTINUED —")
+	_card.closed.connect(_finish_part_one, CONNECT_ONE_SHOT)
+
+
+func _finish_part_one() -> void:
+	GameState.set_stage(7)
+	_apply_stage(7)
 
 
 func _stage_card(stage: int, title: String, body: String) -> void:

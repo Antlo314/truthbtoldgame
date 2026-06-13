@@ -2,13 +2,16 @@ extends CharacterBody3D
 ## Bro Truth — present-day controller. Animated Quaternius Hoodie Character
 ## with Idle/Walk/Run blending and Strike (deliverance) combat.
 
-const MODEL := preload("res://assets/models/characters/bro_truth_hoodie.glb")
 const SPEED := 6.0
 const ACCEL := 24.0
 const TURN_SPEED := 12.0
 const HEIGHT := 1.7
 const STRIKE_RANGE := 2.6
 const STRIKE_COOLDOWN := 0.45
+
+## Swappable body — present-day Bro Truth by default; era scenes (Enoch etc.)
+## set this to their figure's model before adding the player to the tree.
+var model_path := "res://assets/models/characters/bro_truth_hoodie.glb"
 
 var _anim: AnimationPlayer
 var _action_until := 0.0
@@ -24,7 +27,7 @@ func _ready() -> void:
 	col.position.y = HEIGHT * 0.5
 	add_child(col)
 
-	var visual: Node3D = MODEL.instantiate()
+	var visual: Node3D = (load(model_path) as PackedScene).instantiate()
 	add_child(visual)
 	var aabb := _combined_aabb(visual)
 	var s := HEIGHT / maxf(aabb.size.y, 0.01)
@@ -39,7 +42,7 @@ func _ready() -> void:
 			# Only locomotion loops; one-shots (punches, hits) play through.
 			if n.contains("Idle") or n.contains("Walk") or n.contains("Run"):
 				_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
-		_play("Idle_Neutral")
+		_play_idle()
 
 
 func _process(_delta: float) -> void:
@@ -77,7 +80,7 @@ func _physics_process(delta: float) -> void:
 		elif speed > 0.4:
 			_play("Walk")
 		else:
-			_play("Idle_Neutral")
+			_play_idle()
 
 
 func _strike() -> void:
@@ -99,6 +102,13 @@ func _strike() -> void:
 		var fwd := -global_transform.basis.z
 		if fwd.dot(to_s.normalized()) > 0.2:
 			spirit.take_hit(to_s.normalized())
+
+
+func _play_idle() -> void:
+	if _anim and _anim.has_animation("CharacterArmature|Idle_Neutral"):
+		_play("Idle_Neutral")
+	else:
+		_play("Idle")
 
 
 func _play(name: String) -> void:
