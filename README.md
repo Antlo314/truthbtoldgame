@@ -63,7 +63,7 @@ pickup. Preview renders live in `docs/previews/`.
 - [x] Story-card cutscene placeholders (Grok videos drop into the same slots later)
 - [x] First deliverance encounter — the alley spirit hunts while you Discern, drains Oil on touch; STRIKE (F) three times to cast it out
 - [x] The Enoch trial — first Jasher Jump: walk the path of light through the veil gates as Enoch; grants the Walking With God Gift; Part 1 now ends after the return
-- [ ] Use the Gift in the present (veil barriers in St. Louis)
+- [x] The Gift works in the present — a veil seals the alley's far mouth; Walking With God phases through it to the torn page (Part 2 teaser: ABRAHAM)
 - [ ] Music + sound effects
 - [ ] Android export + on-device test
 - [ ] Part 2: The Furnace (Abraham chapter)

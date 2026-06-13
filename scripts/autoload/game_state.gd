@@ -21,7 +21,7 @@ const OBJECTIVES := {
 	4: "THE VEIL SEES YOU — follow the arrow to the steel door!",
 	5: "Walk where Enoch walked.",
 	6: "",
-	7: "Part 1 complete — the city is yours. To be continued…",
+	7: "Part 1 complete — the city is yours. Something glimmers behind the alley veil…",
 }
 
 var part := 1
@@ -35,6 +35,7 @@ var shards_total := 5
 var collected_shards: Array[int] = []
 var gifts: Array[String] = []
 var delivered_spirits: Array[String] = []
+var found_pages: Array[String] = []
 var playtime := 0.0
 
 var _dry_flash_at := -10.0
@@ -99,6 +100,13 @@ func grant_gift(gift_id: String) -> void:
 	SaveManager.save_game()
 
 
+func collect_page(page_id: String) -> void:
+	if page_id in found_pages:
+		return
+	found_pages.append(page_id)
+	SaveManager.save_game()
+
+
 func deliver_spirit(spirit_id: String) -> void:
 	if spirit_id in delivered_spirits:
 		return
@@ -151,6 +159,9 @@ func apply_save(data: Dictionary) -> void:
 	delivered_spirits.clear()
 	for d in data.get("delivered_spirits", []):
 		delivered_spirits.append(str(d))
+	found_pages.clear()
+	for p in data.get("found_pages", []):
+		found_pages.append(str(p))
 	part = int(data.get("part", 1))
 	quest_stage = int(data.get("quest_stage", 0))
 	discernment_unlocked = bool(data.get("discernment_unlocked", false))

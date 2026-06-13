@@ -15,6 +15,8 @@ const STUDY_POINT := Vector3(8, 0, 8)
 const STORE_POS := Vector3(4.3, 0, -12)   # corner store front (building-g)
 const BOOK_POS := Vector3(9, 0, 0.5)      # alley wall cavity
 const DOOR_POS := Vector3(-3.7, 0, 12)    # safehouse steel door (building-j)
+const VEIL_POS := Vector3(12, 1.7, 8)     # seals the alley's far mouth
+const PAGE_POS := Vector3(16, 0.9, 12)    # the Part 2 teaser, behind the veil
 
 const CARD_SCRIPT := preload("res://scripts/ui/story_card.gd")
 const INTRO_TITLE := "A MESSAGE FROM LALA"
@@ -30,7 +32,7 @@ const BRICK_TINTS: Array[Color] = [
 
 const SHARD_POSITIONS: Array[Vector3] = [
 	Vector3(13.5, 0.8, 8),    # in the alley
-	Vector3(14, 0.8, -20),    # behind the east row
+	Vector3(-2.6, 0.8, -22),  # north road, west lane
 	Vector3(0, 0.8, 0),       # middle of the crosswalk
 	Vector3(-2.5, 0.8, 24),   # south street
 	Vector3(2, 0.8, -31),     # north plaza
@@ -46,6 +48,11 @@ var _watcher: CharacterBody3D
 var _book: MeshInstance3D
 var _beam: MeshInstance3D
 var _card: CanvasLayer
+var _veil_col: CollisionShape3D
+var _veil_mesh: MeshInstance3D
+var _veil_mat: StandardMaterial3D
+var _page: MeshInstance3D
+var _veil_flash_at := -10.0
 
 var _shot := false
 var _shot_quest := false
@@ -99,6 +106,8 @@ func _process(delta: float) -> void:
 	_cam_rig.position = _cam_rig.position.lerp(_player.position + Vector3.UP * 1.7, minf(1.0, 8.0 * delta))
 	for shard in _shards.values():
 		shard.rotate_y(2.0 * delta)
+	if _page and is_instance_valid(_page):
+		_page.rotate_y(1.5 * delta)
 	if _shot or _shot_quest:
 		_run_screenshot_script()
 
@@ -135,8 +144,22 @@ func _physics_process(delta: float) -> void:
 				GameState.minimap_shards.erase(SHARD_POSITIONS[id])
 				shard.queue_free()
 				_shards.erase(id)
+		if not ("walking_with_god" in GameState.gifts) \
+				and absf(_player.position.x - VEIL_POS.x) < 1.6 \
+				and _player.position.z > -0.5 and _player.position.z < 16.5 \
+				and GameState.playtime - _veil_flash_at > 4.0:
+			_veil_flash_at = GameState.playtime
+			GameState.flash_message("The veil resists you. Its secret needs a longer walk.")
 	elif _player.position.distance_to(STUDY_POINT) < REFILL_RANGE:
 		GameState.refill_oil(delta)
+	if _page and is_instance_valid(_page) and _player.position.distance_to(PAGE_POS) < 2.0:
+		GameState.collect_page("abraham")
+		_page.queue_free()
+		_page = null
+		GameState.flash_message("A torn page — a name burns on it: ABRAHAM.")
+		if not _shot and not _shot_quest:
+			_show_card("THE TORN PAGE",
+				"Hidden behind the veil: a page torn from the Book. A name burns across it in letters of fire —\n\nABRAHAM.\n\nThe furnace is waiting.\n\n— PART 2 TEASER —")
 
 
 # --- world building -------------------------------------------------------
@@ -386,6 +409,11 @@ func _on_discern_changed(active: bool) -> void:
 	for node in _hidden_nodes:
 		if is_instance_valid(node):
 			node.visible = active
+	if _veil_mesh:
+		var has_gift := "walking_with_god" in GameState.gifts
+		_veil_mesh.visible = active
+		_veil_col.disabled = active and has_gift
+		_veil_mat.albedo_color.a = 0.15 if (active and has_gift) else 0.5
 	_env.fog_enabled = active
 	if active:
 		_env.fog_light_color = Color(0.95, 0.78, 0.35)
@@ -453,6 +481,46 @@ func _spawn_quest_objects() -> void:
 	lmat.emission_energy_multiplier = 2.0
 	lamp.material_override = lmat
 	add_child(lamp)
+
+	# The veil sealing the alley's far mouth, and the pocket behind the east row
+	_invisible_box(Vector3(9, 6, 1), Vector3(16.5, 3, -32.5))
+	_invisible_box(Vector3(9, 6, 1), Vector3(16.5, 3, 32.5))
+	var veil_body := StaticBody3D.new()
+	veil_body.position = VEIL_POS
+	_veil_col = CollisionShape3D.new()
+	var vshape := BoxShape3D.new()
+	vshape.size = Vector3(0.5, 3.4, 16.2)
+	_veil_col.shape = vshape
+	veil_body.add_child(_veil_col)
+	_veil_mesh = MeshInstance3D.new()
+	var vmesh := BoxMesh.new()
+	vmesh.size = Vector3(0.5, 3.4, 16.2)
+	_veil_mesh.mesh = vmesh
+	_veil_mat = StandardMaterial3D.new()
+	_veil_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_veil_mat.albedo_color = Color(0.45, 0.20, 0.60, 0.5)
+	_veil_mat.emission_enabled = true
+	_veil_mat.emission = Color(0.5, 0.2, 0.7)
+	_veil_mat.emission_energy_multiplier = 1.2
+	_veil_mesh.material_override = _veil_mat
+	_veil_mesh.visible = false  # the sleeping world can't see it
+	veil_body.add_child(_veil_mesh)
+	add_child(veil_body)
+
+	# The torn page — Part 2 teaser, behind the veil
+	if not ("abraham" in GameState.found_pages):
+		_page = MeshInstance3D.new()
+		var page_mesh := BoxMesh.new()
+		page_mesh.size = Vector3(0.45, 0.6, 0.05)
+		_page.mesh = page_mesh
+		_page.position = PAGE_POS
+		var page_mat := StandardMaterial3D.new()
+		page_mat.albedo_color = Color(1.0, 0.93, 0.7)
+		page_mat.emission_enabled = true
+		page_mat.emission = Color(1.0, 0.8, 0.35)
+		page_mat.emission_energy_multiplier = 2.2
+		_page.material_override = page_mat
+		add_child(_page)
 
 
 func _apply_stage(stage: int) -> void:
@@ -575,7 +643,13 @@ func _run_screenshot_script() -> void:
 		215:
 			_capture("combat_strike.png", false)
 		300:
-			_capture("combat_cast_out.png", true)
+			_capture("combat_cast_out.png", false)
+		320:
+			GameState.grant_gift("walking_with_god")
+			_on_discern_changed(GameState.discerning)
+			Input.action_press("move_right")
+		480:
+			_capture("veil_page.png", true)
 
 
 func _capture(file: String, then_quit: bool) -> void:
